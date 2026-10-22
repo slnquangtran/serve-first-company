@@ -39,23 +39,49 @@ const ART = (() => {
 
   // Founding-screen illustration: an isometric office waiting for its team.
   function office(colors) {
-    const desk = (x, y, c, i) => `<g transform="translate(${x} ${y})">
-      <path d="M0 22 44 0 88 22 44 44z" fill="#2e1820"/><path d="M0 22v8l44 22v-8z" fill="#1d0e12"/><path d="M88 22v8L44 52v-8z" fill="#160a0d"/>
-      <path d="M28 10 48 0v20L28 30z" fill="#0d0709"/><path d="M31 12 45 5v12L31 25z" class="screen-glow" data-i="${i}" fill="${c}" opacity=".85"/>
-      <path d="M40 30l6-3 9 4-6 3z" fill="#3a2228"/><rect x="62" y="20" width="10" height="11" rx="3" fill="${c}" opacity=".4"/></g>`;
-    return `<svg viewBox="30 50 390 240" class="office-art" role="img" aria-label="An isometric office with four desks waiting for the team">
+    // One projection for everything: room is 10x10 floor units, x runs lower-right, y lower-left, z is height in px.
+    const pt = (x, y, z = 0) => [220 + (x - y) * 20, 150 + (x + y) * 10 - z];
+    const quad = (pts, fill, extra = '') => `<path d="M${pts.map(p => pt(...p).join(' ')).join('L')}z" fill="${fill}"${extra}/>`;
+    // Visible faces of an axis-aligned box: front-left, front-right, top.
+    const box = (x, y, w, d, z, h, top, left, right) =>
+      quad([[x, y + d, z], [x + w, y + d, z], [x + w, y + d, z + h], [x, y + d, z + h]], left) +
+      quad([[x + w, y, z], [x + w, y + d, z], [x + w, y + d, z + h], [x + w, y, z + h]], right) +
+      quad([[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]], top);
+    const wallX = (y0, y1, z0, z1) => [[0, y0, z0], [0, y1, z0], [0, y1, z1], [0, y0, z1]];
+    const wallY = (x0, x1, z0, z1) => [[x0, 0, z0], [x1, 0, z0], [x1, 0, z1], [x0, 0, z1]];
+
+    // Desk on legs, monitor facing its chair, empty chair tinted with the follower's color.
+    const W = 2.6, D = 1.4;
+    const desk = (x, y, c, i) => {
+      const leg = (lx, ly) => box(lx, ly, .15, .15, 0, 20, '#1d0e12', '#1d0e12', '#160a0d');
+      const sy = y + .3, cx = x + .95, cy = y + D + .3;
+      return leg(x + W - .15, y) + leg(x, y + D - .15) + leg(x + W - .15, y + D - .15)
+        + box(x, y, W, D, 20, 4, '#3a2228', '#1d0e12', '#160a0d')
+        + box(x + 1.2, sy - .1, .1, .1, 24, 8, '#0d0709', '#0d0709', '#0d0709')
+        + quad([[x + .5, sy, 30], [x + 2, sy, 30], [x + 2, sy, 52], [x + .5, sy, 52]], '#0d0709')
+        + quad([[x + .6, sy, 32], [x + 1.9, sy, 32], [x + 1.9, sy, 50], [x + .6, sy, 50]], c, ` class="screen-glow" data-i="${i}" opacity=".85"`)
+        + quad([[x + .7, y + .75, 24], [x + 1.8, y + .75, 24], [x + 1.8, y + 1.05, 24], [x + .7, y + 1.05, 24]], '#4a2c33')
+        + `<g opacity=".55">${box(x + 2.1, y + .6, .25, .25, 24, 7, c, c, c)}</g>`
+        + box(cx + .3, cy + .3, .1, .1, 0, 12, '#0d0709', '#0d0709', '#0d0709')
+        + box(cx, cy, .7, .7, 12, 3, '#2e1820', '#1d0e12', '#160a0d')
+        + quad([[cx, cy + .7, 15], [cx + .7, cy + .7, 15], [cx + .7, cy + .7, 34], [cx, cy + .7, 34]], c, ' opacity=".55"');
+    };
+    const [px, py] = pt(9.2, 1.2), [ex, ey] = pt(9, 7.6);
+    const towers = [[2.3, 2.8, 22], [3, 3.6, 36], [3.8, 4.2, 18], [4.4, 5, 42], [5.2, 5.6, 24]];
+    const line = ' stroke="#e0b85e" stroke-opacity=".5" stroke-width="2"';
+
+    return `<svg viewBox="10 30 420 330" class="office-art" role="img" aria-label="An isometric office with four desks and empty chairs waiting for the team">
       <defs><linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a1426"/><stop offset="1" stop-color="#e0b85e" stop-opacity=".7"/></linearGradient></defs>
-      <path d="M20 110 220 10v150L20 260z" fill="#3a1b24"/>
-      <path d="M420 110 220 10v150l200 100z" fill="#2b141b"/>
-      <path d="M20 260 220 160 420 260 220 360z" fill="#24131a"/>
-      <path d="M60 140V96l80-40v44z" fill="url(#win)" opacity=".8"/>
-      <g fill="#12080b" opacity=".85"><path d="M68 136v-16l9-4v16zM81 129v-26l11-5v26zM96 122v-14l8-4v14zM108 116v-30l12-6v30zM124 108v-16l8-4v16z"/></g>
-      <path d="M60 140V96l80-40v44zM100 120V76" fill="none" stroke="#3a2228" stroke-width="3"/>
-      <path d="M300 90l60 30v34l-60-30z" fill="#2a161c" stroke="#e0b85e" stroke-opacity=".45"/>
-      <path d="M310 104l40 20M310 114l28 14" stroke="#e0b85e" stroke-opacity=".5" stroke-width="2"/>
-      ${desk(110, 196, colors[0], 0)}${desk(176, 164, colors[1], 1)}${desk(176, 228, colors[2], 2)}${desk(242, 196, colors[3], 3)}
-      <g class="plant" transform="translate(372 210)"><path d="M0 30h22l-3 22H3z" fill="#6b4a12"/><path d="M11 30C2 20 0 8 6 0c3 10 6 18 5 30zM11 30c8-12 16-16 22-14-6 4-12 9-22 14zM11 30C4 22-6 20-10 24c6 0 13 2 21 6z" fill="#1f7a6d"/></g>
-      <g class="ceo" transform="translate(56 196)"><ellipse cx="15" cy="58" rx="16" ry="5" fill="#000" opacity=".35"/><path d="M3 56c0-14 5-22 12-22s12 8 12 22z" fill="#e0b85e"/><circle cx="15" cy="24" r="10" fill="#e8b48f"/><path d="M5 22c0-8 5-12 10-12s10 4 10 12c-3-3-6-4-10-4s-7 1-10 4z" fill="#2b1a14"/></g>
+      ${quad(wallX(0, 10, 0, 110), '#3a1b24')}${quad(wallY(0, 10, 0, 110), '#2b141b')}
+      ${quad([[0, 0], [10, 0], [10, 10], [0, 10]], '#24131a')}
+      ${quad(wallX(2, 6, 45, 95), 'url(#win)', ' opacity=".8"')}
+      <g opacity=".85">${towers.map(([a, b, h]) => quad(wallX(a, b, 45, 45 + h), '#12080b')).join('')}</g>
+      ${quad(wallX(2, 6, 45, 95), 'none', ' stroke="#3a2228" stroke-width="3"')}${quad(wallX(4, 4, 45, 95), 'none', ' stroke="#3a2228" stroke-width="3"')}
+      ${quad(wallY(5, 8.5, 45, 85), '#2a161c', ' stroke="#e0b85e" stroke-opacity=".45"')}
+      ${quad(wallY(5.5, 8, 70, 70), 'none', line)}${quad(wallY(5.5, 7, 60, 60), 'none', line)}
+      <g class="plant" transform="translate(${px - 11} ${py - 52})"><path d="M0 30h22l-3 22H3z" fill="#6b4a12"/><path d="M11 30C2 20 0 8 6 0c3 10 6 18 5 30zM11 30c8-12 16-16 22-14-6 4-12 9-22 14zM11 30C4 22-6 20-10 24c6 0 13 2 21 6z" fill="#1f7a6d"/></g>
+      ${desk(1.6, 1.3, colors[0], 0)}${desk(5.6, 1.3, colors[1], 1)}${desk(1.6, 5.3, colors[2], 2)}${desk(5.6, 5.3, colors[3], 3)}
+      <g class="ceo" transform="translate(${ex - 15} ${ey - 58})"><ellipse cx="15" cy="58" rx="16" ry="5" fill="#000" opacity=".35"/><path d="M3 56c0-14 5-22 12-22s12 8 12 22z" fill="#e0b85e"/><circle cx="15" cy="24" r="10" fill="#e8b48f"/><path d="M5 22c0-8 5-12 10-12s10 4 10 12c-3-3-6-4-10-4s-7 1-10 4z" fill="#2b1a14"/></g>
     </svg>`;
   }
 
