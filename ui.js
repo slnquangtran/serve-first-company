@@ -15,13 +15,17 @@ let s, ind = INDUSTRIES[0], day, afterClose = null, shownCash = null;
 let G = window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches ? window.gsap : null;
 // Some browsers (background tabs, embedded panes) deliver no animation frames,
 // or only a trickle, which would leave "fade in" tweens stuck at invisible. A normal browser draws ~60 frames
-// a second; if fewer than 20 arrive in the first second, drop motion and show everything.
-if (G) setTimeout(() => {
-  if (!G || G.ticker.frame >= 20) return;
-  G.globalTimeline.clear();
-  G.set(document.querySelectorAll('[style]'), { clearProps: 'opacity,visibility,transform,clipPath' });
-  G = null;
-}, 1000);
+// a second; if fewer than 20 arrive in any second, drop motion for good and show everything.
+if (G) {
+  let lastFrame = 0;
+  const watch = setInterval(() => {
+    if (G.ticker.frame - lastFrame >= 20) { lastFrame = G.ticker.frame; return; }
+    clearInterval(watch);
+    G.globalTimeline.clear();
+    G.set(document.querySelectorAll('[style]'), { clearProps: 'opacity,visibility,transform,clipPath' });
+    G = null;
+  }, 1000);
+}
 
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fol = id => FOLLOWERS.find(f => f.id === id) || { name: 'Open seat', role: '', color: '#3a2a2e' };
@@ -106,7 +110,6 @@ function renderHud() {
   setCash(s.cash);
   $('hudCash').classList.toggle('low', s.cash < 10);
   $('hudTrust').textContent = s.trust;
-  BG.setMood(s.trust / 100);
   $('hudBook').textContent = `${Object.keys(s.concepts).length} / ${TOTAL_CONCEPTS}`;
 }
 

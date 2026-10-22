@@ -26,7 +26,6 @@ Open `index.html` in a browser (double-click works). No build step, no install.
 | `data.js` | Content: sources, team, daily actions, 30 events with per-move concepts |
 | `ui.js` | Screens, moves, concept cards, daily reports, GSAP motion |
 | `art.js` | Hand-made SVG art: portraits whose expression follows engagement, office scene, event icons |
-| `bg.js` | WebGL background shader; its colour follows team trust (burgundy when low, teal when high) |
 | `engine.test.js` | Self-checks and strategy simulations: `node engine.test.js` |
 
 ## Thesis the game tests

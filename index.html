@@ -10,16 +10,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #12080b; --panel: #1b0f13; --card: rgba(255,255,255,.05); --line: rgba(255,255,255,.12); --text: #f3e6d3; --muted: #b9a89a;
+  --bg: #000; --panel: #1b0f13; --card: rgba(255,255,255,.05); --line: rgba(255,255,255,.12); --text: #f3e6d3; --muted: #b9a89a;
   --lead: #e2566f; --fol: #3cc2ab; --gold: #e0b85e; --warn: #f08a4b;
   --serif: Fraunces, Georgia, serif; --sans: Inter, "Segoe UI", system-ui, sans-serif; --ease: cubic-bezier(.16,1,.3,1);
 }
 * { box-sizing: border-box; }
 html { overflow-x: clip; }
 body { margin: 0; min-height: 100vh; color: var(--text); font: 15px/1.5 var(--sans); background: var(--bg); overflow-x: clip; }
-#bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; opacity: 0; transition: opacity 1.4s; }
-#bg.on { opacity: 1; }
-body::before { content: ""; position: fixed; inset: 0; z-index: -2; background: radial-gradient(60vmax 50vmax at 90% -10%, rgba(122,20,38,.45), transparent 60%), radial-gradient(60vmax 50vmax at -10% 110%, rgba(15,74,65,.45), transparent 60%); }
 h1, h2, h3 { font-family: var(--serif); font-weight: 300; margin: 0; line-height: 1.1; }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:disabled { cursor: default; }
@@ -59,7 +56,7 @@ a { color: var(--gold); }
 .resume p { margin: 4px 0 0; color: var(--muted); font-size: .86rem; }
 
 /* ---------- HUD ---------- */
-.hud { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(14px); background: rgba(18,8,11,.82); border-bottom: 1px solid var(--line); }
+.hud { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(14px); background: rgba(0,0,0,.82); border-bottom: 1px solid var(--line); }
 .hud .wrap { display: grid; grid-template-columns: auto 1fr repeat(4, auto); gap: 18px; align-items: center; padding-top: 10px; padding-bottom: 10px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .logo { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font: 600 1.15rem var(--serif); color: #fff; flex: none; }
@@ -217,7 +214,6 @@ dialog[open] { animation: rise .45s var(--ease); }
 </style>
 </head>
 <body>
-<canvas id="bg" aria-hidden="true"></canvas>
 <div id="curtain" aria-hidden="true"><div class="dc"><div class="dc-week" id="dcWeek"></div><div class="dc-day" id="dcDay"></div><div class="dc-sub" id="dcSub"></div></div></div>
 
 <div class="hud" id="hud" hidden>
@@ -303,7 +299,6 @@ dialog[open] { animation: rise .45s var(--ease); }
 <script src="engine.js"></script>
 <script src="data.js"></script>
 <script src="art.js"></script>
-<script src="bg.js"></script>
 <script src="ui.js"></script>
 </body>
 </html>
