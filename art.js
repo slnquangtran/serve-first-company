@@ -85,7 +85,7 @@ const ART = (() => {
     'Game of chicken': 'chicken', 'Bargaining': 'scales', 'Principal and agent': 'chart', 'Moral hazard': 'shield', 'Reputation': 'shield',
     'Costly signaling': 'chart', 'Free riding': 'coins', 'Peer punishment': 'gavel', 'Psychological safety': 'shield', 'Tournament': 'trophy',
     'Coordination': 'chicken', 'Hold-up problem': 'lock', 'Auction': 'gavel', 'Changing payoffs': 'chart', 'Commitment device': 'pin',
-    'Adverse selection': 'person', 'Daily action': 'person'
+    'Adverse selection': 'person', 'Daily action': 'person', 'Collusion': 'handshake', 'Market': 'chart'
   };
   const icon = tag => ICONS[BY_TAG[tag] || 'speech'];
 

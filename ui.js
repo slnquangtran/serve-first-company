@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const E = Engine;
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-const TOTAL_CONCEPTS = new Set([...ACTIONS.map(a => a.c), ...EVENTS.flatMap(e => e.o.map(o => o.c))]).size;
+const TOTAL_CONCEPTS = new Set([...ACTIONS.map(a => a.c), ...Object.values(MARKET_MOVES).map(m => m.c), ...EVENTS.flatMap(e => e.o.map(o => o.c))]).size;
 const ARCH = {
   strategic: ['The <em>Strategic</em> Servant', 'You served first, answered free riding with a credible and proportionate response, listened, and stayed fair. In repeated-game terms you played the equilibrium strategy of servant leadership: cooperation that enforces itself.'],
   commander: ['The <em>Iron</em> Commander', 'You mostly commanded, ignored problems or took the bigger share. That wins single rounds, but your followers had exit options and private information, and engagement, honest signals and people drained away.'],
@@ -15,8 +15,9 @@ let s, ind = INDUSTRIES[0], day, afterClose = null, shownCash = null;
 const G = window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches ? window.gsap : null;
 
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fol = id => FOLLOWERS.find(f => f.id === id);
+const fol = id => FOLLOWERS.find(f => f.id === id) || { name: 'Open seat', role: '', color: '#3a2a2e' };
 const nameOf = id => s.team[id].name || fol(id).name;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const money = k => `${k < 0 ? '−' : ''}$${Math.abs(Math.round(k * 10) / 10)}k`;
 const signed = n => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(Math.round(n * 10) / 10)}`;
 const engColor = v => v >= 60 ? 'var(--fol)' : v >= 40 ? 'var(--gold)' : 'var(--lead)';
@@ -46,7 +47,8 @@ $('open').addEventListener('click', () => {
   s = E.newState(name, ind.name);
   shownCash = null;
   $('log').innerHTML = '';
-  addLog(`<b>Day 1.</b> ${esc(name)} opens its doors with four people and ${money(s.cash)} in the bank.`, 'good');
+  addLog(`<b>Day 1.</b> ${esc(name)} opens its doors with four people and ${money(s.cash)} in the bank. Rent of ${money(E.RENT)} is due every Friday.`, 'good');
+  addLog(`<b>Rival:</b> ${ind.rival} competes for the same customers. Its pricing strategy is hidden.`, 'bad');
   $('hud').hidden = false;
   show('office');
   startDay();
@@ -63,7 +65,7 @@ function startDay() {
   const d = s.day;
   $('dcWeek').textContent = `Week ${Math.ceil(d / 5)} · ${s.company}`;
   $('dcDay').innerHTML = `<em>${WEEKDAYS[(d - 1) % 5]}</em>`;
-  $('dcSub').textContent = `Day ${d} of ${E.DAYS}${day.ev ? ' · something is in your inbox' : ' · a quiet day'}`;
+  $('dcSub').textContent = `Day ${d} of ${E.DAYS}${day.ev ? ' · something is in your inbox' : ' · a quiet day'}${d % 5 === 0 ? ` · rent of ${money(E.RENT)} due tonight` : ''}`;
   G.timeline()
     .set('#curtain', { autoAlpha: 1 })
     .fromTo('#curtain', { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)', duration: 0.45, ease: 'power3.out' })
@@ -80,6 +82,7 @@ function render(deltas = {}) {
   renderDesks(deltas);
   renderGauges();
   renderToday();
+  renderMarket();
 }
 
 function renderHud() {
@@ -88,7 +91,8 @@ function renderHud() {
   $('hudName').textContent = s.company;
   $('hudInd').textContent = s.industry;
   const d = Math.min(s.day, E.DAYS);
-  $('hudDay').textContent = `Week ${Math.ceil(d / 5)} · ${WEEKDAYS[(d - 1) % 5]} · Day ${d} of ${E.DAYS}`;
+  $('hudDay').textContent = `Week ${Math.ceil(d / 5)} · ${WEEKDAYS[(d - 1) % 5]} · Day ${d} of ${E.DAYS}${d % 5 === 0 ? ' · rent due' : ''}`;
+  $('hudShare').textContent = `${s.share}%`;
   $('hudTrack').style.width = `${100 * d / E.DAYS}%`;
   setCash(s.cash);
   $('hudCash').classList.toggle('low', s.cash < 10);
@@ -107,19 +111,24 @@ function setCash(v) {
 }
 
 function renderDesks(deltas) {
-  $('desks').innerHTML = FOLLOWERS.map(f => {
-    const p = s.team[f.id];
-    const d = deltas[f.id] || 0;
+  $('desks').innerHTML = E.IDS.map(id => {
+    const f = { ...fol(id), id }, p = s.team[id];
+    if (p.open) return `<div class="desk left"><header><div class="av">${ART.portrait(id, '#2a1c20', 50, false, true)}</div><div><h3>Open seat</h3><small>Use "Recruit" to fill it</small></div></header><div class="status">No payroll, no output.</div></div>`;
+    const d = deltas[id] || 0;
     const pop = d ? `<span class="pop ${d > 0 ? 'up' : 'down'}">${signed(d)}</span>` : '';
-    const head = `<header><div class="av">${ART.portrait(f.id, p.here ? f.color : '#3a2a2e', p.eng, p.out > 0, !!p.name)}</div><div><h3>${esc(nameOf(f.id))}</h3><small>${f.role}${p.name ? ' · new hire' : ''}</small></div></header>`;
+    const color = p.here ? p.color || f.color : '#3a2a2e';
+    const head = `<header><div class="av">${ART.portrait(id, color, p.eng, p.out > 0, !!p.name)}</div><div><h3>${esc(nameOf(id))}</h3><small>${p.role || f.role}${p.name ? ` · new hire · ${money(p.pay)}/day` : ''}</small></div></header>`;
     if (!p.here) return `<div class="desk left">${head}<div class="status"><b>Resigned.</b> The desk is empty.</div></div>`;
+    // A hire's type is private information until they have worked long enough for you to see it.
+    const type = !p.name ? f.type : p.days >= E.REVEAL_DAYS ? KINDS[p.kind] : `Type hidden · shows in ${E.REVEAL_DAYS - p.days} day${E.REVEAL_DAYS - p.days > 1 ? 's' : ''}`;
     const status = p.out > 0 ? `<b>Out</b> for ${p.out} more day${p.out > 1 ? 's' : ''}`
       : s.day === 1 ? '<b>First day</b>'
-      : s.committed[f.id] ? '<b style="color:var(--fol)">Committed</b> yesterday' : '<b style="color:var(--lead)">Shirked</b> yesterday';
-    const load = f.id !== 'priya' ? ''
+      : !(id in s.committed) || p.days === 0 ? '<b>First day</b>'
+      : s.committed[id] ? '<b style="color:var(--fol)">Committed</b> yesterday' : '<b style="color:var(--lead)">Shirked</b> yesterday';
+    const load = id !== 'priya' ? ''
       : s.reveal > 0 ? `<div class="meter"><span>Workload</span><div class="bar"><i style="width:${s.load}%;background:${s.load >= 70 ? 'var(--lead)' : 'var(--gold)'}"></i></div><b>${s.load}</b></div>`
       : '<div class="meter"><span>Workload</span><span style="width:auto">hidden: only Priya knows</span></div>';
-    return `<div class="desk${d > 0 ? ' hot' : d < 0 ? ' cold' : ''}">${pop}${head}<div class="type"><span class="chip teal">${f.type}</span></div>
+    return `<div class="desk${d > 0 ? ' hot' : d < 0 ? ' cold' : ''}">${pop}${head}<div class="type"><span class="chip ${p.name && p.kind === 'lemon' && p.days >= E.REVEAL_DAYS ? '' : 'teal'}">${type}</span></div>
       <div class="meter"><span>Engagement</span><div class="bar"><i style="width:${p.eng}%;background:${engColor(p.eng)}"></i></div><b>${p.eng}</b></div>${load}
       <div class="status">${status}</div></div>`;
   }).join('');
@@ -135,7 +144,7 @@ function renderGauges() {
 
 function renderToday() {
   $('stepAct').classList.toggle('done', !!day.acted);
-  $('actions').innerHTML = ACTIONS.map(a => `<button class="act${day.acted === a.id ? ' mine' : ''}" data-id="${a.id}"${day.acted ? ' disabled' : ''}><b>${a.t}</b><small>${a.d}</small></button>`).join('');
+  $('actions').innerHTML = ACTIONS.map(a => `<button class="act${day.acted === a.id ? ' mine' : ''}" data-id="${a.id}"${day.acted || (a.recruit && !E.hasSeat(s)) ? ' disabled' : ''}><b>${a.t}</b><small>${a.recruit && !E.hasSeat(s) ? 'Every seat is taken.' : a.d}</small></button>`).join('');
   const targets = E.IDS.filter(id => s.team[id].here && s.team[id].out === 0);
   $('targets').hidden = !day.picking;
   $('targets').innerHTML = day.picking ? '<span class="muted" style="font-size:.85rem">With whom?</span>' + targets.map(id => `<button data-t="${id}">${esc(nameOf(id))}</button>`).join('') : '';
@@ -146,14 +155,69 @@ function renderToday() {
     : `<div class="ev-badge">${ART.icon(ev.tag)}</div><div class="from"><span>From: <b style="color:var(--text)">${ev.from}</b></span><span class="chip teal">${ev.tag}</span></div>
        <h4>${ev.title}</h4><p>${ev.text}</p><div class="trait">Servant leadership trait tested: ${ev.trait}</div>
        <div class="opts">${ev.o.map((o, k) => `<button class="opt${day.choice === k ? ' mine' : ''}" data-k="${k}"${day.choice !== null ? ' disabled' : ''}>${o.t}</button>`).join('')}</div>`;
-  $('endDay').disabled = day.closed || !(day.acted && (!ev || day.choice !== null));
+  $('endDay').disabled = day.closed || !(day.acted && s.market && (!ev || day.choice !== null));
 }
+
+// The market is a repeated prisoner's dilemma against a rival whose strategy you must infer from its history.
+function renderMarket() {
+  const hist = s.rival.hist, last = hist[hist.length - 1], me = s.market;
+  $('rivalName').textContent = ind.rival;
+  $('stepMarket').classList.toggle('done', !!me);
+  const cell = (a, b) => {
+    const k = a + b;
+    const note = k === 'DC' ? '<small>share +4</small>' : k === 'CD' ? `<small>${s.flags.matchClause ? 'matched: ×' + E.MARKET.DD : 'share −4'}</small>` : '';
+    return `<td class="${last && last.me === a && last.them === b ? 'last' : ''} ${E.MARKET[k] >= 1 ? 'good' : 'bad'}">×${E.MARKET[k]}${note}</td>`;
+  };
+  const dots = who => hist.length ? hist.map((h, i) => `<i class="${h[who] === 'C' ? 'hold' : 'cut'}" title="Day ${i + 1}: ${h[who] === 'C' ? 'held' : 'cut'}"></i>`).join('') : '<span class="muted">no rounds yet</span>';
+  $('market').innerHTML = `<p class="mkt-note">You both move at the same time. Your move multiplies today's revenue. ${esc(ind.rival)}'s strategy is hidden: read it from the history.</p>
+    <table class="matrix"><tr><th></th><th>They hold</th><th>They cut</th></tr>
+      <tr><th>You hold</th>${cell('C', 'C')}${cell('C', 'D')}</tr><tr><th>You cut</th>${cell('D', 'C')}${cell('D', 'D')}</tr></table>
+    <div class="hist"><span>You</span><div>${dots('me')}</div><span>${esc(ind.rival)}</span><div>${dots('them')}</div></div>
+    <div class="meter"><span>Your share</span><div class="bar"><i style="width:${s.share}%;background:${s.share >= 50 ? 'var(--fol)' : 'var(--lead)'}"></i></div><b>${s.share}</b></div>
+    <div class="mkt">${['C', 'D'].map(m => `<button class="opt${me === m ? ' mine' : ''}" data-m="${m}"${me ? ' disabled' : ''}><b>${MARKET_MOVES[m].t}</b></button>`).join('')}</div>`;
+}
+$('market').addEventListener('click', e => {
+  const b = e.target.closest('[data-m]');
+  if (!b || b.disabled) return;
+  const m = MARKET_MOVES[b.dataset.m];
+  const option = { t: `${m.t} against ${ind.rival}`, fx: { market: b.dataset.m }, c: m.c, x: m.x };
+  if (!s.concepts[m.c]) return move(option, { kind: 'Market', src: m.src });
+  s = E.play(s, option);
+  addLog(`<b>Market:</b> ${esc(option.t)}`);
+  render();
+});
+
+/* ---------- Recruiting: three applicants, hidden types, noisy signals ---------- */
+let cands = [];
+function openRecruit() {
+  const taken = E.IDS.map(id => s.team[id].name);
+  const names = HIRE_NAMES.filter(n => !taken.includes(n)).sort(() => Math.random() - 0.5);
+  cands = E.candidates(Math.random).map((c, i) => ({ ...c, name: names[i], role: pick(HIRE_ROLES), color: pick(HIRE_COLORS) }));
+  openDlg(`<div class="kicker">Recruiting · adverse selection</div><h2>Three applicants</h2>
+    <p>Each applicant knows whether they will really commit. You only see signals: interviews reward charm, referrals put someone else's reputation on the line. Their true type shows after ${E.REVEAL_DAYS} days at work, and their pay joins payroll every day from now on.</p>
+    <div class="cands">${cands.map((c, i) => `<div class="cand"><div class="av">${ART.portrait('hire', c.color, 60, false, true)}</div><div>
+      <h3>${esc(c.name)} <small>· ${c.role}</small></h3>
+      <div class="meter"><span>Interview</span><div class="bar"><i style="width:${c.interview}%;background:var(--gold)"></i></div><b>${c.interview}</b></div>
+      <p>${c.referral ? '<b style="color:var(--fol)">Referred</b> by someone you trust' : 'No referral'} · asks <b>${money(c.pay)}/day</b></p>
+      <button class="opt" data-c="${i}">Hire ${esc(c.name)} ($1k fee)</button></div></div>`).join('')}</div>
+    <p class="muted">Close this window to keep the seat empty and pick another action.</p>`);
+}
+$('dlgBody').addEventListener('click', e => {
+  const b = e.target.closest('[data-c]');
+  if (!b) return;
+  const c = cands[+b.dataset.c], a = ACTIONS.find(x => x.recruit);
+  afterClose = null;
+  $('dlg').close();
+  day.acted = a.id;
+  move({ ...a, t: `Hired ${c.name} (${c.role})`, fx: { cash: -1, hire: c } }, { kind: 'Adverse selection', src: a.src });
+});
 
 /* ---------- Moves ---------- */
 $('actions').addEventListener('click', e => {
   const b = e.target.closest('.act');
   if (!b || b.disabled) return;
   const a = ACTIONS.find(x => x.id === b.dataset.id);
+  if (a.recruit) return openRecruit();
   if (a.target) { day.picking = a.id; return renderToday(); }
   day.acted = a.id;
   move({ ...a }, { kind: 'Daily action', src: a.src });
@@ -214,18 +278,21 @@ $('endDay').addEventListener('click', () => {
   const before = s, r = E.endDay(s);
   s = r.s;
   day = { ...day, closed: true };
-  const rows = E.IDS.map(id => {
+  const rows = E.IDS.filter(id => !before.team[id].open).map(id => {
     const p = before.team[id];
     const st = !p.here ? 'gone' : p.out > 0 ? 'out' : r.report.committed[id] ? 'committed' : 'shirked';
     return `<span class="${st === 'committed' ? 'up' : st === 'shirked' ? 'down' : ''}">${esc(p.name || fol(id).name)}: ${st}</span>`;
   }).join('');
-  const net = r.report.earned - r.report.payroll;
-  addLog(`<b>Day ${before.day} closed.</b> Revenue ${money(r.report.earned)}, payroll ${money(r.report.payroll)}, net ${money(net)}.`, net >= 0 ? 'good' : 'bad');
+  const net = s.cash - before.cash;
+  const verb = m => m === 'C' ? 'held price' : 'undercut';
+  const mkt = `You ${verb(r.report.me)}, ${ind.rival} ${verb(r.report.them)}: revenue ×${r.report.mult}.`;
+  addLog(`<b>Day ${before.day} closed.</b> ${esc(mkt)} Revenue ${money(r.report.earned)}, payroll ${money(r.report.payroll)}${r.report.rent ? `, rent ${money(r.report.rent)}` : ''}, net ${money(net)}.`, net >= 0 ? 'good' : 'bad');
   r.report.events.forEach(t => addLog(`<b>Alert:</b> ${esc(t)}`, 'bad'));
   render(diff(before, s));
   openDlg(`<div class="kicker">End of day ${before.day} · ${WEEKDAYS[(before.day - 1) % 5]}</div>
     <h2>Daily report</h2>
-    <div class="report-grid"><div><span class="label">Revenue</span><b>${money(r.report.earned)}</b></div><div><span class="label">Payroll</span><b>${money(-r.report.payroll)}</b></div><div><span class="label">Net</span><b style="color:${net >= 0 ? 'var(--fol)' : 'var(--lead)'}">${money(net)}</b></div></div>
+    <div class="report-grid"><div><span class="label">Revenue</span><b>${money(r.report.earned)}</b></div><div><span class="label">Payroll${r.report.rent ? ' + rent' : ''}</span><b>${money(-r.report.payroll - r.report.rent)}</b></div><div><span class="label">Net</span><b style="color:${net >= 0 ? 'var(--fol)' : 'var(--lead)'}">${money(net)}</b></div></div>
+    <p class="${r.report.them === 'D' ? 'outcome' : 'muted'}" style="font-size:.9rem"><b>Market:</b> ${esc(mkt)}</p>
     <p class="muted" style="font-size:.86rem">Only people who commit earn money, but everyone on the team is paid. Each person chose to commit or shirk using their own strategy.</p>
     <div class="fx">${rows}</div>
     ${r.report.events.map(t => `<p style="color:var(--lead)"><b>${esc(t)}</b></p>`).join('')}`,
@@ -270,8 +337,10 @@ function finish() {
     : s.over === 'empty' ? `Everyone at ${esc(s.company)} left. ` : `${esc(s.company)} survived its first month. `;
   $('endKicker').textContent = s.over === 'done' ? 'Month one complete' : 'Game over';
   $('endTitle').innerHTML = arch[0];
-  $('endText').innerHTML = why + arch[1];
-  $('endStats').innerHTML = [['Cash', money(s.cash)], ['Revenue', money(s.revenue)], ['Team', `${kept} / 4`], ['Trust', s.trust], ['Concepts', `${Object.keys(s.concepts).length} / ${TOTAL_CONCEPTS}`]]
+  const [rName, rDid, rBest] = RIVAL_INFO[s.rival.strat];
+  const cuts = s.rival.hist.filter(h => h.me === 'D').length;
+  $('endText').innerHTML = `${why}${arch[1]}<span class="rival-reveal"><b>${esc(ind.rival)} was playing ${rName}${s.flags.matchClause ? ' (until your price-match guarantee turned it into tit for tat)' : ''}.</b> ${rDid} Best reply: ${rBest} You undercut on ${cuts} of ${s.rival.hist.length} days.</span>`;
+  $('endStats').innerHTML = [['Cash', money(s.cash)], ['Revenue', money(s.revenue)], ['Team', kept], ['Market share', `${s.share}%`], ['Trust', s.trust], ['Concepts', `${Object.keys(s.concepts).length} / ${TOTAL_CONCEPTS}`]]
     .map(([k, v]) => `<div><span class="label">${k}</span><b>${v}</b></div>`).join('');
   $('endBookTitle').textContent = 'Your concept book';
   $('endBook').innerHTML = bookHtml();

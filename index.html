@@ -60,7 +60,7 @@ a { color: var(--gold); }
 
 /* ---------- HUD ---------- */
 .hud { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(14px); background: rgba(18,8,11,.82); border-bottom: 1px solid var(--line); }
-.hud .wrap { display: grid; grid-template-columns: auto 1fr repeat(3, auto); gap: 18px; align-items: center; padding-top: 10px; padding-bottom: 10px; }
+.hud .wrap { display: grid; grid-template-columns: auto 1fr repeat(4, auto); gap: 18px; align-items: center; padding-top: 10px; padding-bottom: 10px; }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .logo { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font: 600 1.15rem var(--serif); color: #fff; flex: none; }
 .brand b { display: block; font: 600 1.05rem var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
@@ -137,6 +137,25 @@ a { color: var(--gold); }
 .opt:hover:not(:disabled) { border-color: var(--gold); transform: translateX(4px); }
 .opt.mine { border-color: var(--gold); background: rgba(224,184,94,.12); }
 .quiet { color: var(--muted); font-style: italic; margin: 0; }
+.mkt-note { margin: 0 0 10px; font-size: .82rem; color: var(--muted); }
+.matrix { width: 100%; border-collapse: separate; border-spacing: 4px; font-size: .8rem; }
+.matrix th { font-weight: 600; color: var(--muted); text-align: center; padding: 2px; }
+.matrix td { text-align: center; padding: 8px 4px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); font: 600 1.05rem var(--serif); transition: border-color .3s; }
+.matrix td small { display: block; font: 500 .66rem var(--sans); color: var(--muted); }
+.matrix td.good { color: var(--fol); } .matrix td.bad { color: var(--lead); }
+.matrix td.last { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+.hist { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; margin-top: 10px; font-size: .74rem; color: var(--muted); }
+.hist div { display: flex; flex-wrap: wrap; gap: 3px; }
+.hist i { width: 11px; height: 11px; border-radius: 3px; }
+.hist i.hold { background: var(--fol); } .hist i.cut { background: var(--lead); }
+.mkt { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.cands { display: grid; gap: 10px; margin: 12px 0; }
+.cand { display: grid; grid-template-columns: 52px 1fr; gap: 12px; background: rgba(0,0,0,.22); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
+.cand .av { width: 52px; height: 52px; }
+.cand h3 { font-size: 1.15rem; } .cand h3 small { font: 400 .8rem var(--sans); color: var(--muted); }
+.cand p { font-size: .84rem; color: var(--muted); margin: 8px 0; }
+.cand .opt { width: 100%; font-weight: 600; }
+.rival-reveal { display: block; margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(0,0,0,.25); border-left: 3px solid var(--lead); text-align: left; }
 .endday { width: 100%; }
 
 /* ---------- Dialog ---------- */
@@ -172,7 +191,7 @@ dialog[open] { animation: rise .45s var(--ease); }
 .end-card h1 { font-size: clamp(2.2rem, 7vw, 3.6rem); margin: 8px 0; }
 .end-card h1 em { color: var(--gold); font-weight: 600; }
 .end-card > p { max-width: 600px; margin: 10px auto; color: #ecdccb; }
-.end-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 20px 0; }
+.end-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 20px 0; }
 .end-stats div { background: rgba(0,0,0,.22); border-radius: 14px; padding: 12px 8px; }
 .end-stats b { font: 300 1.5rem var(--serif); }
 .end-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
@@ -207,6 +226,7 @@ dialog[open] { animation: rise .45s var(--ease); }
     <div class="cal"><span class="label">Calendar</span><b id="hudDay"></b><div class="track"><i id="hudTrack"></i></div></div>
     <div class="stat"><span class="label">Cash</span><b id="hudCash"></b></div>
     <div class="stat"><span class="label">Trust</span><b id="hudTrust"></b></div>
+    <div class="stat"><span class="label">Share</span><b id="hudShare"></b></div>
     <button class="book-btn" id="bookBtn"><span class="label">Concept book</span><b id="hudBook"></b></button>
   </div>
 </div>
@@ -225,7 +245,7 @@ dialog[open] { animation: rise .45s var(--ease); }
         <div class="field" style="margin-bottom:0">What do you make?</div>
         <div class="inds" id="inds" role="group" aria-label="Industry"></div>
         <button class="cta" id="open">Open the office →</button>
-        <p class="muted" style="font-size:.85rem;margin-top:14px">Goal: finish the month with cash in the bank, your team intact and their trust. Run out of cash and the company closes.</p>
+        <p class="muted" style="font-size:.85rem;margin-top:14px">Goal: finish the month with cash in the bank, your team intact and their trust. Run out of cash and the company closes. Rent is due every Friday, a rival with a hidden strategy fights you for every customer, and the market throws shocks at you.</p>
       </div>
       <div>
         <div id="officeArt"></div>
@@ -251,6 +271,7 @@ dialog[open] { animation: rise .45s var(--ease); }
       <div class="today">
         <div class="step" id="stepAct"><h3><span>1 · Morning: one leadership action</span></h3><div class="actions" id="actions"></div><div class="targets" id="targets" hidden></div></div>
         <div class="step" id="stepMail"><h3><span>2 · Inbox</span></h3><div class="mail" id="mail"></div></div>
+        <div class="step" id="stepMarket"><h3><span>3 · Market vs <span id="rivalName"></span></span></h3><div id="market"></div></div>
         <button class="cta endday" id="endDay" disabled>End the day →</button>
       </div>
     </div>

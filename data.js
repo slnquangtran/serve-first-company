@@ -20,7 +20,8 @@ const REFS = [
   'Klein, B., Crawford, R. G., & Alchian, A. A. (1978). Vertical integration, appropriable rents, and the competitive contracting process. Journal of Law and Economics, 21(2), 297–326. doi:10.1086/466922',
   'Schelling, T. C. (1960). The Strategy of Conflict. Harvard University Press.',
   'Skyrms, B. (2004). The Stag Hunt and the Evolution of Social Structure. Cambridge University Press.',
-  'Thaler, R. H. (1988). Anomalies: The winner\'s curse. Journal of Economic Perspectives, 2(1), 191–202. doi:10.1257/jep.2.1.191'
+  'Thaler, R. H. (1988). Anomalies: The winner\'s curse. Journal of Economic Perspectives, 2(1), 191–202. doi:10.1257/jep.2.1.191',
+  'Motta, M., & Polo, M. (2003). Leniency programs and cartel prosecution. International Journal of Industrial Organization, 21(3), 347–379. doi:10.1016/S0167-7187(02)00057-7'
 ];
 
 const FOLLOWERS = [
@@ -31,10 +32,31 @@ const FOLLOWERS = [
 ];
 
 const INDUSTRIES = [
-  { id: 'games', name: 'Game studio', color: '#9b1d33' },
-  { id: 'coffee', name: 'Coffee roasters', color: '#6b4a12' },
-  { id: 'apps', name: 'App startup', color: '#1f7a6d' }
+  { id: 'games', name: 'Game studio', color: '#9b1d33', rival: 'Pixelforge' },
+  { id: 'coffee', name: 'Coffee roasters', color: '#6b4a12', rival: 'Black Anvil' },
+  { id: 'apps', name: 'App startup', color: '#1f7a6d', rival: 'Nimbus' }
 ];
+
+/* ---------- Hiring: what a hire turns out to be once their type shows ---------- */
+const KINDS = {
+  coop: 'Conditional cooperator', rider: 'Free rider', star: 'Star with an exit option', private: 'Private information',
+  lemon: 'Lemon: looked great, delivers little'
+};
+const HIRE_NAMES = ['Noor', 'Jonas', 'Kai', 'Elena', 'Tomás', 'Ines', 'Ravi', 'Mei', 'Oskar', 'Amara', 'Felix', 'Lin'];
+const HIRE_ROLES = ['Engineer', 'Sales', 'Designer', 'Support', 'Marketing', 'Analyst'];
+const HIRE_COLORS = ['#7fb3ff', '#ff9ec7', '#9be37a', '#ffd36e', '#8fe3e0', '#d6a3ff'];
+
+/* ---------- The rival: a hidden strategy you can only read from its moves ---------- */
+const RIVAL_INFO = {
+  tft: ['Tit for tat', 'Opened by holding prices, then copied whatever you did the day before.', 'Hold prices every day. Each cut you made came straight back at you.'],
+  grim: ['Grim trigger', 'Held prices until the first time you undercut, then cut prices for the rest of the month.', 'Never cut first. One defection ended cooperation for good.'],
+  shark: ['Always defect (with bait)', 'Held prices on day one to look friendly, then undercut every single day.', 'Undercut back from day two. Holding prices against a shark only gives away share.'],
+  forgiver: ['Tit for two tats', 'Retaliated only after you cut prices two days in a row.', 'Exploitable: cutting every other day wins share without ever triggering a response.']
+};
+const MARKET_MOVES = {
+  C: { t: 'Hold price', c: 'Repeated prisoner\'s dilemma (holding price)', x: 'Holding price is cooperating with your rival: if both hold, both keep healthy margins. If they cut while you hold, they take your customers. Whether holding pays depends entirely on the strategy they are playing, which you can only infer from their history.', src: 4 },
+  D: { t: 'Undercut', c: 'Bertrand price war (undercutting)', x: 'Undercutting wins share if the rival holds, but if both cut, margins collapse for both: the classic prisoner\'s dilemma. In a repeated game, a cut today also changes how a retaliating rival plays tomorrow.', src: 4 }
+};
 
 /* ---------- Daily actions: one per day ---------- */
 const ACTIONS = [
@@ -55,11 +77,16 @@ const ACTIONS = [
     c: 'Making effort observable (reputation)', x: 'Recognition only for those who actually delivered turns effort into a visible, rewarded signal. Cooperators feel their contribution counts, and the free rider sees that effort, not presence, is what gets noticed.', src: 1 },
   { id: 'own', t: 'Focus on your own work (+$3k)', d: 'Close a deal yourself. No time for the team today.', style: null,
     fx: { cash: 3 },
-    c: 'Opportunity cost of the leader\'s time', x: 'Your own work earns money now, but every hour you spend as an individual contributor is an hour not spent changing your team\'s payoffs. Sometimes the cash is needed; as a habit it trades a multiplier for a one-off.' }
+    c: 'Opportunity cost of the leader\'s time', x: 'Your own work earns money now, but every hour you spend as an individual contributor is an hour not spent changing your team\'s payoffs. Sometimes the cash is needed; as a habit it trades a multiplier for a one-off.' },
+  { id: 'recruit', t: 'Recruit ($1k fee)', d: 'Fill an empty seat. Three applicants, hidden quality.', recruit: true, style: null,
+    c: 'Adverse selection in hiring', x: 'Every applicant knows their own type; you see only signals. Interviews are cheap talk that charming free riders and polished lemons ace. A referral is costlier to fake, because someone put their own reputation on the line. Each new hire adds payroll forever but only adds revenue if they actually commit.', src: 13 }
 ];
 
 /* ---------- Events ---------- */
 const isHere = (s, id) => s.team[id].here;
+const present = s => Object.keys(s.team).filter(id => s.team[id].here);
+const topOf = s => present(s).sort((a, b) => s.team[b].eng - s.team[a].eng)[0];
+const lowOf = s => present(s).sort((a, b) => s.team[a].eng - s.team[b].eng)[0];
 const EVENTS = [
   { id: 'kickoff', triggered: true, tag: 'Trust game', trait: 'Serving first (Greenleaf)', from: 'Day one', title: 'Your first morning as CEO.',
     text: 'Four people just joined a company that does not exist yet. Your first move sets expectations for every round that follows.', src: 6, o: [
@@ -331,14 +358,76 @@ const EVENTS = [
     { t: 'Try to find out who wrote it', style: 'command', fx: { trust: -15, priya: -8, all: -4 },
       c: 'Destroying an anonymous channel', x: 'Anonymity made honest feedback cheap. Breaking it raises the cost of honesty, and every future survey becomes a pooling equilibrium of polite answers.', o: 'Everyone hears about it.' }] },
 
+  /* ---------- Outside pressure: rival, regulators, investors, coalitions ---------- */
+  { id: 'poach', triggered: true, tag: 'Exit option', trait: 'Commitment to the growth of people (Spears)', from: 'Your rival', title: 'The rival is poaching your most engaged person.',
+    text: 'After days of price war, the rival CEO moves the fight to your team: a 40% higher offer to whoever is most engaged. They are betting you will panic and overpay.', src: 16, when: s => !!topOf(s), o: [
+    { t: 'Match the money on the spot (−$5k)', style: 'command', fx: s => ({ cash: -5, [topOf(s)]: 8, all: -3, trust: -2 }),
+      c: 'The ratchet of credible threats', x: 'Matching keeps this person, but everyone now knows that an outside offer is the fastest route to a raise. You taught the whole team that threatening to leave pays, and you raised the rival\'s return on poaching.', o: 'They stay. By Friday two others are "talking to recruiters".' },
+    { t: 'Ask what they actually want here, and act on it (−$1k)', style: 'listen', fx: s => s.team[topOf(s)].eng >= 65 ? { cash: -1, [topOf(s)]: 10, trust: 5 } : { cash: -1, leave: topOf(s), queue: 'hire', trust: 2 },
+      c: 'Outside options set the bargaining range', x: 'In bargaining, each side\'s outside option sets the floor (Nash, 1950). Engaged people value what you control, such as growth, autonomy and respect, more than a rival can buy. Disengaged people were already halfway out: one conversation cannot undo weeks of low engagement.', o: 'It depends on how engaged they were before the offer.' },
+    { t: 'Wish them well and let them go', style: 'serve', fx: s => ({ leave: topOf(s), queue: 'hire', all: -4 }),
+      c: 'Rewarding a predatory strategy', x: 'Letting go without a fight avoids the ratchet, but against a predatory rival it rewards poaching: they gain a strong player and you pay to replace them. Generosity without a response is exploitable.', o: 'Their desk is empty by Monday.' }] },
+
+  { id: 'collude', tag: 'Collusion', trait: 'Stewardship (Spears)', from: 'The rival CEO', title: '"Let\'s both stop discounting. Nobody needs to know."',
+    text: 'A private message from the rival CEO. Agreeing would end the price war overnight, if they kept their word. It is also illegal price fixing.', src: 21, when: s => s.rival.hist.length >= 3, o: [
+    { t: 'Agree quietly', style: 'unfair', fx: s => ({ set: { colluded: s.day }, queue: 'regulator' }),
+      c: 'Cartel instability', x: 'An agreement you cannot enforce in court changes nothing about the rival\'s payoffs: each side still gains by cheating. Watch their moves, not their words. And because price fixing is illegal, you have both just been handed a reason to confess first.', o: 'A thumbs-up emoji. Their prices tomorrow will tell you what it meant.' },
+    { t: 'Decline, and keep reading their moves, not their words', style: 'conditional', fx: { trust: 2 },
+      c: 'Cheap talk between competitors', x: 'Words that cost nothing to send and bind nobody are cheap talk (Crawford and Sobel, 1982). The rival\'s history of moves is evidence; a promise in a private chat is not.', o: 'You screenshot the message and stay alert.' },
+    { t: 'Publicly guarantee to match any lower price (−$2k)', style: 'conditional', fx: { cash: -2, rival: 'tft', set: { matchClause: true } },
+      c: 'Credible commitment (price-match guarantee)', x: 'By promising customers you will match any lower price, you make undercutting you pointless: a cut can no longer steal your share. A public, costly commitment changes the rival\'s payoffs, so their best reply becomes holding price (Schelling, 1960).', o: 'Customers love it. The rival\'s discounts suddenly look pointless.' }] },
+
+  { id: 'regulator', triggered: true, tag: 'Prisoner\'s dilemma', trait: 'Stewardship (Spears)', from: 'Competition authority', title: 'Regulators are investigating price fixing in your market.',
+    text: 'Both you and the rival are on the list. The first firm to confess under the leniency programme pays almost nothing. The other pays the full fine.', src: 21, when: s => s.day >= s.flags.colluded + 3, o: [
+    { t: 'Confess first under the leniency programme (−$2k)', style: 'conditional', fx: { cash: -2, share: 6, trust: 2 },
+      c: 'Leniency programmes (a designed prisoner\'s dilemma)', x: 'Regulators turned cartels into a prisoner\'s dilemma: the first to confess gets immunity, so each member\'s best reply is to confess. That makes every cartel fragile from day one. The rival pays the full fine and loses customers.', o: 'You get immunity. The rival gets the headline.' },
+    { t: 'Stay silent and hope the rival does too', style: 'ignore', fx: { cash: -12, share: -4, trust: -4 },
+      c: 'Betting on the other prisoner', x: 'Silence works only if the other player trusts you more than they fear the fine. The rival faced the same dilemma and confessed first. You pay in full.', o: 'The rival confessed this morning.' },
+    { t: 'Blame a junior employee for "rogue pricing"', style: 'unfair', fx: { cash: -8, all: -10, trust: -15 },
+      c: 'Scapegoating', x: 'The fine is barely smaller, and every follower now knows you will sacrifice them to protect yourself. In the repeated game with your own team, that is the most expensive defection there is.', o: 'The team stops speaking freely in meetings.' }] },
+
+  { id: 'talent-war', tag: 'Auction', trait: 'Persuasion (Spears)', from: 'A recruiter', title: 'A star engineer is on the market. The rival is bidding too.',
+    text: 'Zara could out-produce anyone you have, and the rival has already made an offer. Whoever wins a bidding war often pays more than the person is worth.', src: 20, when: s => Object.values(s.team).some(p => !p.here), o: [
+    { t: 'Bid whatever it takes (−$3k signing bonus)', style: 'command', fx: { cash: -3, hire: { name: 'Zara', role: 'Senior engineer', color: '#7fb3ff', kind: 'star', prod: 4.5, pay: 5, eng: 55 } },
+      c: 'Winner\'s curse', x: 'You won by outbidding everyone, which means you paid more than every other bidder thought she was worth. Her daily pay now eats most of what she produces.', o: 'Zara joins, on a salary that hurts every payday.' },
+    { t: 'Bid up to her value to you, then walk away', style: 'conditional', fx: { share: -3, trust: 1 },
+      c: 'Bidding your true value', x: 'Never bid above what the prize is worth to you. Sometimes that means losing the auction, and losing at a fair price beats winning at a ruinous one. The rival does get stronger, though.', o: 'The rival hires Zara. Their product improves.' },
+    { t: 'Pitch the mission, the team, and real ownership', style: 'serve', fx: s => s.trust >= 60 ? { hire: { name: 'Zara', role: 'Senior engineer', color: '#7fb3ff', kind: 'star', prod: 4.5, pay: 3, eng: 75 } } : { share: -3 },
+      c: 'Reputation as non-monetary pay', x: 'People accept less money to work for a leader with a reputation for treating people well, but only if the reputation is real. Zara asks your team about you: with trust at 60 or more she joins on fair pay; below that she takes the rival\'s money.', o: 'Zara calls two of your people before deciding.' }] },
+
+  { id: 'board', triggered: true, tag: 'Costly signaling', trait: 'Stewardship (Spears)', from: 'Your investors', title: 'Board meeting: show traction or lose support.',
+    text: 'Halfway through the month. The board will commit more money only if revenue so far is at least $90k. Your real numbers are on the screen.', src: 12, o: [
+    { t: 'Show the real numbers and a credible plan', style: 'listen', fx: s => s.revenue >= 90 ? { cash: 12, trust: 3 } : { cash: 3, trust: 3 },
+      c: 'Credible disclosure', x: 'Honest numbers are a signal the board can rely on next time. Hit the target and they fund you; miss it and they give a little and watch. Either way you keep your credibility for every future round.', o: 'The board funds what the numbers justify.' },
+    { t: 'Inflate the forecast to raise more (+$15k)', style: 'ignore', fx: { cash: 15, queue: 'audit' },
+      c: 'Cheap talk that gets checked', x: 'A forecast costs nothing to write, which is exactly why investors discount and audit it. Lying moves money today and moves your reputation to zero when the check arrives.', o: 'The money lands. So does an audit request.' },
+    { t: 'Ask for less, with no strings attached (+$5k)', style: 'serve', fx: { cash: 5 },
+      c: 'Bargaining with a weak outside option', x: 'With no other investor lined up, your outside option is weak, so the board sets the terms. Asking for less avoids conditions but leaves you thin on cash for the second half.', o: 'Polite nods. A modest transfer.' }] },
+
+  { id: 'audit', triggered: true, tag: 'Reputation', trait: 'Healing (Spears)', from: 'Your investors', title: 'The investors audited your forecast.',
+    text: 'The numbers you showed the board do not match the bank statements.', src: 4, o: [
+    { t: 'Own it fully and return part of the money (−$10k)', style: 'listen', fx: { cash: -10, trust: 4 },
+      c: 'Repairing a reputation', x: 'Admitting a defection and paying for it is the only route back to cooperation in a repeated game. It is expensive, and still cheaper than the alternative.', o: 'The board is cold, but stays.' },
+    { t: 'Blame the finance team', style: 'unfair', fx: { cash: -14, all: -10, trust: -12 },
+      c: 'Doubling down on a defection', x: 'The board sees through it and claws back more, and your team learns that you push blame downward.', o: 'A clawback, and a team that no longer trusts you.' }] },
+
+  { id: 'walkout', tag: 'Bargaining', trait: 'Listening (Spears)', from: 'The team', title: 'Three people threaten to walk out together.',
+    text: 'Low trust has turned into a coalition. Alone, none of them had leverage. Together, they do.', src: 16, when: s => s.trust < 45 && Object.values(s.team).filter(p => p.here).length >= 3, o: [
+    { t: 'Sit down with the group and fix the real complaints (−$4k)', style: 'listen', fx: { cash: -4, all: 8, trust: 10 },
+      c: 'Coalitions change bargaining power', x: 'A coalition raises everyone\'s threat at once: losing three people is far worse than losing one. Negotiating honestly with the group fixes the cause instead of fighting the threat.', o: 'A tense meeting. Real changes. The air clears.' },
+    { t: 'Divide and rule: privately offer the ringleader a raise', style: 'unfair', fx: s => ({ cash: -2, [topOf(s)]: 6, all: -10, trust: -10 }),
+      c: 'Breaking a coalition', x: 'Buying off one member can split a coalition, but the others find out, and now they also know you negotiate in secret. Trust across the whole repeated game falls.', o: 'The walkout collapses. So does the mood.' },
+    { t: 'Call their bluff: "The door is open."', style: 'command', fx: s => s.trust < 35 ? { leave: lowOf(s), all: -8, trust: -6, queue: 'hire' } : { all: -6, trust: -6 },
+      c: 'Calling a bluff', x: 'A threat is credible only if carrying it out beats backing down. When trust is very low it does, and someone walks. When trust is moderate they stay, resentful.', o: 'Silence in the office.' }] },
+
   { id: 'hire', triggered: true, tag: 'Adverse selection', trait: 'Foresight (Spears)', from: 'You', title: 'You need to replace someone who left.',
     text: 'Three ways to hire. Candidates know their own quality; you do not.', src: 13, when: s => Object.values(s.team).some(p => !p.here), o: [
     { t: 'Paid trial project before the offer', style: 'conditional', fx: { cash: -2, hire: { eng: 70, name: 'Noah' } },
       c: 'Screening', x: 'A trial project is a test that good candidates pass easily and weak ones struggle with, so it reveals the hidden quality you could not see.', o: 'Noah joins and is excellent.' },
     { t: 'Hire the candidate with the most prestigious degree', style: null, fx: { cash: -1, hire: { eng: 55, name: 'Ava' } },
       c: 'Job market signalling', x: 'A degree is a costly signal that correlates with ability (Spence, 1973). It is informative, but it is not the same as the skills you need.', o: 'Ava is smart and still learning the job.' },
-    { t: 'Hire the cheapest candidate available this week', style: null, fx: { hire: { eng: 35, name: 'Max' } },
+    { t: 'Hire the cheapest candidate available this week', style: null, fx: { hire: { eng: 35, name: 'Max', kind: 'lemon', prod: 1.5 } },
       c: 'Adverse selection', x: 'When you cannot see quality and offer the lowest price, the candidates who accept are disproportionately the ones with no better options.', o: 'Max is cheap. You will see why.' }] }
 ];
 
-if (typeof module !== 'undefined') module.exports = { REFS, FOLLOWERS, INDUSTRIES, ACTIONS, EVENTS };
+if (typeof module !== 'undefined') module.exports = { REFS, FOLLOWERS, INDUSTRIES, ACTIONS, EVENTS, KINDS, RIVAL_INFO, MARKET_MOVES };
