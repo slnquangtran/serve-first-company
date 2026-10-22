@@ -13,10 +13,11 @@ const ARCH = {
 let s, ind = INDUSTRIES[0], day, afterClose = null, shownCash = null;
 // GSAP drives the motion; without it (offline, or reduced motion) the game still works, just static.
 let G = window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches ? window.gsap : null;
-// Some browsers (background tabs, embedded panes) deliver no animation frames, which would leave every
-// "fade in" tween stuck at invisible. If no frame arrives within a second, drop motion and show everything.
+// Some browsers (background tabs, embedded panes) deliver no animation frames,
+// or only a trickle, which would leave "fade in" tweens stuck at invisible. A normal browser draws ~60 frames
+// a second; if fewer than 20 arrive in the first second, drop motion and show everything.
 if (G) setTimeout(() => {
-  if (!G || G.ticker.frame > 2) return;
+  if (!G || G.ticker.frame >= 20) return;
   G.globalTimeline.clear();
   G.set(document.querySelectorAll('[style]'), { clearProps: 'opacity,visibility,transform,clipPath' });
   G = null;
