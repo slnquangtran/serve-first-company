@@ -15,7 +15,9 @@ Simulations in `engine.test.js` (200 games each): a strategic leader averages ab
 
 ## Play
 
-Open `index.html` in a browser (double-click works). No build step, no install.
+Play online: **https://slnquangtran.github.io/serve-first-company/**
+
+Or open `index.html` in a browser (double-click works). No build step, no install.
 
 ## Files
 
