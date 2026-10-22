@@ -10,7 +10,9 @@ const ARCH = {
   builder: ['The <em>Balanced</em> Builder', 'You mixed service and structure. More listening and more credible, fair responses would turn your style into the equilibrium strategy of servant leadership.']
 };
 
-let s, ind = INDUSTRIES[0], day, afterClose = null;
+let s, ind = INDUSTRIES[0], day, afterClose = null, shownCash = null;
+// GSAP drives the motion; without it (offline, or reduced motion) the game still works, just static.
+const G = window.gsap && !matchMedia('(prefers-reduced-motion: reduce)').matches ? window.gsap : null;
 
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fol = id => FOLLOWERS.find(f => f.id === id);
@@ -23,7 +25,7 @@ function show(id) { document.querySelectorAll('.screen').forEach(x => x.classLis
 /* ---------- Founding ---------- */
 function renderFound() {
   $('inds').innerHTML = INDUSTRIES.map(i => `<button class="ind" data-id="${i.id}" aria-pressed="${i === ind}">${i.name}</button>`).join('');
-  $('resumes').innerHTML = FOLLOWERS.map(f => `<div class="resume"><div class="av" style="background:${f.color}">${f.name[0]}</div><div><h3>${f.name} <span class="muted" style="font:400 .85rem var(--sans)">· ${f.role}</span></h3><span class="chip teal">${f.type}</span><p>${f.desc}</p></div></div>`).join('');
+  $('resumes').innerHTML = FOLLOWERS.map(f => `<div class="resume"><div class="av">${ART.portrait(f.id, f.color, 70, false, false)}</div><div><h3>${f.name} <span class="muted" style="font:400 .85rem var(--sans)">· ${f.role}</span></h3><span class="chip teal">${f.type}</span><p>${f.desc}</p></div></div>`).join('');
 }
 $('inds').addEventListener('click', e => {
   const b = e.target.closest('.ind');
@@ -31,16 +33,25 @@ $('inds').addEventListener('click', e => {
   ind = INDUSTRIES.find(i => i.id === b.dataset.id);
   renderFound();
 });
+function intro() {
+  $('officeArt').innerHTML = ART.office(FOLLOWERS.map(f => f.color));
+  if (!G) return;
+  G.from('#found .found > div:first-child > *', { y: 28, autoAlpha: 0, stagger: 0.07, duration: 0.7, ease: 'power3.out' });
+  G.from('.office-art', { y: 40, scale: 0.94, autoAlpha: 0, duration: 1, ease: 'expo.out', delay: 0.15 });
+  G.to('.office-art .screen-glow', { opacity: 0.35, duration: 0.9, stagger: { each: 0.25, repeat: -1, yoyo: true }, ease: 'sine.inOut' });
+  G.to('.office-art .ceo', { y: -4, duration: 1.2, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+}
 $('open').addEventListener('click', () => {
   const name = $('coName').value.trim() || 'Lantern Labs';
   s = E.newState(name, ind.name);
+  shownCash = null;
   $('log').innerHTML = '';
   addLog(`<b>Day 1.</b> ${esc(name)} opens its doors with four people and ${money(s.cash)} in the bank.`, 'good');
   $('hud').hidden = false;
   show('office');
   startDay();
 });
-$('again').addEventListener('click', () => { renderFound(); show('found'); });
+$('again').addEventListener('click', () => { renderFound(); show('found'); intro(); });
 
 /* ---------- Day flow ---------- */
 function startDay() {
@@ -48,6 +59,20 @@ function startDay() {
   s = pick.s;
   day = { acted: null, picking: null, ev: pick.ev, choice: null };
   render();
+  if (!G) return;
+  const d = s.day;
+  $('dcWeek').textContent = `Week ${Math.ceil(d / 5)} · ${s.company}`;
+  $('dcDay').innerHTML = `<em>${WEEKDAYS[(d - 1) % 5]}</em>`;
+  $('dcSub').textContent = `Day ${d} of ${E.DAYS}${day.ev ? ' · something is in your inbox' : ' · a quiet day'}`;
+  G.timeline()
+    .set('#curtain', { autoAlpha: 1 })
+    .fromTo('#curtain', { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)', duration: 0.45, ease: 'power3.out' })
+    .from('#curtain .dc > *', { y: 30, autoAlpha: 0, stagger: 0.08, duration: 0.4, ease: 'power3.out' }, '-=0.15')
+    .to('#curtain', { clipPath: 'inset(100% 0 0 0)', duration: 0.5, ease: 'power3.in', delay: 0.5 })
+    .set('#curtain', { autoAlpha: 0 })
+    .from('.desk', { y: 24, autoAlpha: 0, stagger: 0.06, duration: 0.5, ease: 'back.out(1.6)' }, '-=0.25')
+    .from('#stepAct, #stepMail', { x: 30, autoAlpha: 0, stagger: 0.1, duration: 0.5, ease: 'power3.out' }, '<')
+    .from('#mail .ev-badge', { rotate: -25, scale: 0, duration: 0.6, ease: 'back.out(2)' }, '-=0.2');
 }
 
 function render(deltas = {}) {
@@ -65,10 +90,20 @@ function renderHud() {
   const d = Math.min(s.day, E.DAYS);
   $('hudDay').textContent = `Week ${Math.ceil(d / 5)} · ${WEEKDAYS[(d - 1) % 5]} · Day ${d} of ${E.DAYS}`;
   $('hudTrack').style.width = `${100 * d / E.DAYS}%`;
-  $('hudCash').textContent = money(s.cash);
+  setCash(s.cash);
   $('hudCash').classList.toggle('low', s.cash < 10);
   $('hudTrust').textContent = s.trust;
+  BG.setMood(s.trust / 100);
   $('hudBook').textContent = `${Object.keys(s.concepts).length} / ${TOTAL_CONCEPTS}`;
+}
+
+function setCash(v) {
+  const el = $('hudCash');
+  if (!G || shownCash === null) { el.textContent = money(v); shownCash = v; return; }
+  const o = { v: shownCash };
+  shownCash = v;
+  G.to(o, { v, duration: 0.9, ease: 'power2.out', onUpdate: () => { el.textContent = money(o.v); } });
+  G.fromTo(el, { scale: 1.25 }, { scale: 1, duration: 0.6, ease: 'back.out(3)' });
 }
 
 function renderDesks(deltas) {
@@ -76,7 +111,7 @@ function renderDesks(deltas) {
     const p = s.team[f.id];
     const d = deltas[f.id] || 0;
     const pop = d ? `<span class="pop ${d > 0 ? 'up' : 'down'}">${signed(d)}</span>` : '';
-    const head = `<header><div class="av" style="background:${f.color}">${esc(nameOf(f.id)[0])}</div><div><h3>${esc(nameOf(f.id))}</h3><small>${f.role}${p.name ? ' · new hire' : ''}</small></div></header>`;
+    const head = `<header><div class="av">${ART.portrait(f.id, p.here ? f.color : '#3a2a2e', p.eng, p.out > 0, !!p.name)}</div><div><h3>${esc(nameOf(f.id))}</h3><small>${f.role}${p.name ? ' · new hire' : ''}</small></div></header>`;
     if (!p.here) return `<div class="desk left">${head}<div class="status"><b>Resigned.</b> The desk is empty.</div></div>`;
     const status = p.out > 0 ? `<b>Out</b> for ${p.out} more day${p.out > 1 ? 's' : ''}`
       : s.day === 1 ? '<b>First day</b>'
@@ -88,6 +123,9 @@ function renderDesks(deltas) {
       <div class="meter"><span>Engagement</span><div class="bar"><i style="width:${p.eng}%;background:${engColor(p.eng)}"></i></div><b>${p.eng}</b></div>${load}
       <div class="status">${status}</div></div>`;
   }).join('');
+  if (!G) return;
+  G.from('.desk.hot', { y: -10, duration: 0.5, ease: 'bounce.out' });
+  G.fromTo('.desk.cold', { x: -6 }, { x: 0, duration: 0.5, ease: 'elastic.out(1.2, 0.2)' });
 }
 
 function renderGauges() {
@@ -105,7 +143,7 @@ function renderToday() {
   const ev = day.ev;
   $('stepMail').classList.toggle('done', !ev || day.choice !== null);
   $('mail').innerHTML = !ev ? '<p class="quiet">Quiet day. No fires to put out: your team just works.</p>'
-    : `<div class="from"><span>From: <b style="color:var(--text)">${ev.from}</b></span><span class="chip teal">${ev.tag}</span></div>
+    : `<div class="ev-badge">${ART.icon(ev.tag)}</div><div class="from"><span>From: <b style="color:var(--text)">${ev.from}</b></span><span class="chip teal">${ev.tag}</span></div>
        <h4>${ev.title}</h4><p>${ev.text}</p><div class="trait">Servant leadership trait tested: ${ev.trait}</div>
        <div class="opts">${ev.o.map((o, k) => `<button class="opt${day.choice === k ? ' mine' : ''}" data-k="${k}"${day.choice !== null ? ' disabled' : ''}>${o.t}</button>`).join('')}</div>`;
   $('endDay').disabled = day.closed || !(day.acted && (!ev || day.choice !== null));
@@ -157,10 +195,11 @@ function move(option, meta) {
   const before = s;
   s = E.play(s, option);
   const d = diff(before, s);
+  const isNew = !before.concepts[option.c];
   addLog(`<b>${meta.kind}:</b> ${esc(option.t)} <span class="muted">→ ${option.c}</span>`);
   render(d);
   const others = meta.others ? `<details><summary>The other moves, and what they would have meant</summary><ul>${meta.others.map(o => `<li><b>${o.t}</b><br><i>${o.c}.</i> ${o.x}</li>`).join('')}</ul></details>` : '';
-  openDlg(`<div class="kicker">Game theory concept · ${meta.kind}</div>
+  openDlg(`<div class="ev-badge">${ART.icon(meta.kind)}</div><div class="kicker">Game theory concept · ${meta.kind}${isNew ? '<span class="new-badge">New concept</span>' : ''}</div>
     <h2>${option.c}</h2>
     <p class="move">Your move: ${esc(option.t)}</p>
     ${option.o ? `<p class="outcome">${option.o}</p>` : ''}
@@ -198,6 +237,10 @@ function openDlg(html, then) {
   $('dlgBody').innerHTML = html;
   afterClose = then || null;
   $('dlg').showModal();
+  if (!G) return;
+  G.from('#dlgBody > *', { y: 18, autoAlpha: 0, stagger: 0.05, duration: 0.45, ease: 'power3.out' });
+  G.from('#dlgBody .ev-badge', { rotate: 30, scale: 0, duration: 0.7, ease: 'back.out(2.5)' });
+  G.from('#dlgBody .new-badge, #dlgBody .fx span', { scale: 0, stagger: 0.04, duration: 0.4, ease: 'back.out(3)', delay: 0.25 });
 }
 // Close from our own button and Escape handler instead of the 'close' event, which some embedded browsers never fire.
 function closeDlg() {
@@ -234,6 +277,10 @@ function finish() {
   $('endBook').innerHTML = bookHtml();
   $('refs').innerHTML = REFS.map(r => `<li>${r}</li>`).join('');
   show('end');
+  if (!G) return;
+  G.from('.end-card > *', { y: 30, autoAlpha: 0, stagger: 0.1, duration: 0.7, ease: 'power3.out' });
+  G.from('.end-stats > div', { scale: 0.6, autoAlpha: 0, stagger: 0.08, duration: 0.5, ease: 'back.out(2)', delay: 0.4 });
 }
 
 renderFound();
+intro();
