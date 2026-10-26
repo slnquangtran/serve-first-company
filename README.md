@@ -27,7 +27,9 @@ Or open `index.html` in a browser (double-click works). No build step, no instal
 | `engine.js` | Game rules: follower strategies, daily economics, events queue (pure functions) |
 | `data.js` | Content: sources, team, daily actions, 30 events with per-move concepts |
 | `ui.js` | Screens, moves, concept cards, daily reports, GSAP motion |
-| `art.js` | Hand-made SVG art: portraits whose expression follows engagement, office scene, event icons |
+| `art.js` | Places the pixel art: portraits whose expression follows engagement, office scene, event icons |
+| `art/serve.px.js` | All pixel art as [pxl](https://github.com/crsolver/claude-pxl) code. Rebuild: `npx github:crsolver/claude-pxl build art/serve.px.js --out assets --no-preview` |
+| `assets/` | Built PNG sprites and the animated office GIF |
 | `engine.test.js` | Self-checks and strategy simulations: `node engine.test.js` |
 
 ## Thesis the game tests

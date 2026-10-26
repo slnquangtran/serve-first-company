@@ -52,8 +52,7 @@ function intro() {
   if (!G) return;
   G.from('#found .found > div:first-child > *', { y: 28, autoAlpha: 0, stagger: 0.07, duration: 0.7, ease: 'power3.out' });
   G.from('.office-art', { y: 40, scale: 0.94, autoAlpha: 0, duration: 1, ease: 'expo.out', delay: 0.15 });
-  G.to('.office-art .screen-glow', { opacity: 0.35, duration: 0.9, stagger: { each: 0.25, repeat: -1, yoyo: true }, ease: 'sine.inOut' });
-  G.to('.office-art .ceo', { y: -4, duration: 1.2, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+  G.from('.lens', { y: 30, autoAlpha: 0, stagger: 0.12, duration: 0.5, ease: 'steps(5)', delay: 0.4 });
 }
 $('open').addEventListener('click', () => {
   const name = $('coName').value.trim() || 'Lantern Labs';
@@ -81,9 +80,9 @@ function startDay() {
   $('dcSub').textContent = `Day ${d} of ${E.DAYS}${day.ev ? ' · something is in your inbox' : ' · a quiet day'}${d % 5 === 0 ? ` · rent of ${money(E.RENT)} due tonight` : ''}`;
   G.timeline()
     .set('#curtain', { autoAlpha: 1 })
-    .fromTo('#curtain', { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)', duration: 0.45, ease: 'power3.out' })
+    .fromTo('#curtain', { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)', duration: 0.45, ease: 'steps(8)' })
     .from('#curtain .dc > *', { y: 30, autoAlpha: 0, stagger: 0.08, duration: 0.4, ease: 'power3.out' }, '-=0.15')
-    .to('#curtain', { clipPath: 'inset(100% 0 0 0)', duration: 0.5, ease: 'power3.in', delay: 0.5 })
+    .to('#curtain', { clipPath: 'inset(100% 0 0 0)', duration: 0.5, ease: 'steps(8)', delay: 0.5 })
     .set('#curtain', { autoAlpha: 0 })
     .from('.desk', { y: 24, autoAlpha: 0, stagger: 0.06, duration: 0.5, ease: 'back.out(1.6)' }, '-=0.25')
     .from('#stepAct, #stepMail', { x: 30, autoAlpha: 0, stagger: 0.1, duration: 0.5, ease: 'power3.out' }, '<')
@@ -181,7 +180,8 @@ function renderMarket() {
     return `<td class="${last && last.me === a && last.them === b ? 'last' : ''} ${E.MARKET[k] >= 1 ? 'good' : 'bad'}">×${E.MARKET[k]}${note}</td>`;
   };
   const dots = who => hist.length ? hist.map((h, i) => `<i class="${h[who] === 'C' ? 'hold' : 'cut'}" title="Day ${i + 1}: ${h[who] === 'C' ? 'held' : 'cut'}"></i>`).join('') : '<span class="muted">no rounds yet</span>';
-  $('market').innerHTML = `<p class="mkt-note">You both move at the same time. Your move multiplies today's revenue. ${esc(ind.rival)}'s strategy is hidden: read it from the history.</p>
+  $('market').innerHTML = `<div class="versus"><span>You</span>${ART.sprite('leader')}<b>VS</b>${ART.sprite('rival')}<span>${esc(ind.rival)}</span></div>
+    <p class="mkt-note">You both move at the same time. Your move multiplies today's revenue. ${esc(ind.rival)}'s strategy is hidden: read it from the history.</p>
     <table class="matrix"><tr><th></th><th>They hold</th><th>They cut</th></tr>
       <tr><th>You hold</th>${cell('C', 'C')}${cell('C', 'D')}</tr><tr><th>You cut</th>${cell('D', 'C')}${cell('D', 'D')}</tr></table>
     <div class="hist"><span>You</span><div>${dots('me')}</div><span>${esc(ind.rival)}</span><div>${dots('them')}</div></div>
